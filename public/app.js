@@ -2,7 +2,6 @@
 const canvas = document.getElementById('orbCanvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
-const captionEl = document.getElementById('caption');
 const talkBtn = document.getElementById('talkBtn');
 const talkBtnLabel = document.getElementById('talkBtnLabel');
 const chatToggle = document.getElementById('chatToggle');
@@ -15,9 +14,10 @@ const modelNameEl = document.getElementById('modelName');
 const clockEl = document.getElementById('clock');
 
 let history = [];
-let state = 'idle';
-let conversationActive = false;
+let state = 'idle'; // idle | listening | thinking | speaking
+let conversationActive = false; // true mientras el ciclo de voz continua está corriendo
 
+// ============ Reloj y salud ============
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }, 1000);
@@ -26,6 +26,7 @@ fetch('/api/health').then((r) => r.json()).then((d) => {
   modelNameEl.textContent = d.model || '—';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
 
+// ============ Esfera de partículas (canvas) ============
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 function resizeCanvas() {
   const size = canvas.clientWidth || 420;
@@ -82,7 +83,7 @@ function draw() {
   }).sort((a, b) => a.z - b.z);
 
   for (const p of rotated) {
-    const depth = (p.z + 1) / 2;
+    const depth = (p.z + 1) / 2; // 0..1
     const sx = cx + p.x * radius;
     const sy = cy + p.y * radius;
     const r = 0.6 + depth * 1.8;
@@ -98,6 +99,7 @@ function draw() {
 }
 requestAnimationFrame(draw);
 
+// ============ Estado / UI ============
 const STATUS_LABEL = { idle: 'EN ESPERA', listening: 'ESCUCHANDO', thinking: 'PENSANDO', speaking: 'HABLANDO' };
 
 function setState(next) {
@@ -105,10 +107,6 @@ function setState(next) {
   statusEl.textContent = STATUS_LABEL[next];
   talkBtn.classList.toggle('listening', next === 'listening');
   talkBtnLabel.textContent = next === 'listening' ? 'Escuchando…' : (conversationActive ? 'Detener conversación' : 'Toca para hablar');
-}
-
-function setCaption(text) {
-  captionEl.textContent = text;
 }
 
 function addMessage(role, text) {
@@ -120,9 +118,9 @@ function addMessage(role, text) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+// ============ Conversación con el backend ============
 async function sendMessage(text) {
   addMessage('user', text);
-  setCaption(`Tú: "${text}"`);
   setState('thinking');
 
   try {
@@ -139,11 +137,11 @@ async function sendMessage(text) {
     speak(data.reply);
   } catch (err) {
     addMessage('model', `⚠️ ${err.message}`);
-    setCaption(`Error: ${err.message}`);
     setState('idle');
   }
 }
 
+// ============ Voz: síntesis (TTS) ============
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     setState('idle');
@@ -153,10 +151,10 @@ function speak(text) {
   utter.lang = 'es-MX';
   utter.rate = 1.02;
 
-  utter.onstart = () => { setState('speaking'); setCaption(text); };
+  utter.onstart = () => setState('speaking');
   utter.onend = () => {
     setState('idle');
-    setCaption('');
+    // Si el modo conversación sigue activo, vuelve a escuchar automáticamente.
     if (conversationActive) startListening();
   };
   utter.onerror = () => { setState('idle'); if (conversationActive) startListening(); };
@@ -165,6 +163,7 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
+// ============ Voz: reconocimiento (STT) ============
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 
@@ -181,6 +180,7 @@ if (SpeechRecognition) {
   };
   recognition.onerror = (event) => {
     if (event.error === 'no-speech' && conversationActive) {
+      // Nadie dijo nada: reintenta en vez de morir en silencio.
       startListening();
     } else {
       setState('idle');
@@ -198,6 +198,7 @@ function startListening() {
   try { recognition.start(); } catch (_e) { /* ya estaba escuchando */ }
 }
 
+// ============ Botón principal: conversación continua ============
 talkBtn.addEventListener('click', () => {
   if (!recognition) return;
 
@@ -206,7 +207,6 @@ talkBtn.addEventListener('click', () => {
     window.speechSynthesis.cancel();
     recognition.stop();
     setState('idle');
-    setCaption('');
   } else {
     conversationActive = true;
     talkBtnLabel.textContent = 'Detener conversación';
@@ -214,6 +214,7 @@ talkBtn.addEventListener('click', () => {
   }
 });
 
+// ============ Chat de texto (secundario) ============
 composer.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
