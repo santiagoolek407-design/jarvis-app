@@ -1,0 +1,19 @@
+{
+  "name": "jarvis-mvp",
+  "version": "0.1.0",
+  "description": "Asistente de voz/texto personal, potenciado por Gemini API",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
