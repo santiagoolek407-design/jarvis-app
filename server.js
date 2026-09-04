@@ -3,29 +3,48 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const db = require('./db');
+const auth = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const isProd = process.env.NODE_ENV === 'production';
 
 if (!GEMINI_API_KEY) {
-  console.warn('⚠️  No se encontró GEMINI_API_KEY en las variables de entorno. El chat fallará hasta que la configures.');
+  console.warn('⚠️  No se encontró GEMINI_API_KEY. El chat fallará hasta que la configures.');
+}
+if (!auth.isPasswordSet()) {
+  console.warn('⚠️  No se configuró JARVIS_PASSWORD: cualquiera con el link puede usar tu Jarvis.');
 }
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+app.post('/api/login', (req, res) => {
+  const { password } = req.body || {};
+  const token = auth.login(password);
+  if (token === null) return res.json({ ok: true });
+  if (token === false) return res.status(401).json({ error: 'Contraseña incorrecta' });
+
+  res.setHeader('Set-Cookie', `${auth.COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=2592000; SameSite=Lax${isProd ? '; Secure' : ''}`);
+  res.json({ ok: true });
+});
+
+app.post('/api/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', `${auth.COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0`);
+  res.json({ ok: true });
+});
+
+app.use(auth.authMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const SYSTEM_INSTRUCTION = `Eres JARVIS, el asistente personal de IA del usuario.
 Hablas en español por defecto (a menos que el usuario te escriba en otro idioma), de forma directa, cálida y ligeramente ingeniosa, como un mayordomo de confianza.
 Respuestas concisas cuando la pregunta es simple; detalladas cuando la tarea lo requiere.
 Si no puedes hacer algo todavía (por ejemplo, controlar una app externa), dilo con claridad y sugiere el siguiente paso.
-Tienes memoria de conversaciones anteriores con este usuario: úsala con naturalidad, como alguien que ya lo conoce.`;
+Tienes memoria de esta conversación: úsala con naturalidad, como alguien que ya conoce al usuario.`;
 
-// --- Herramientas (tools) ---
-// UI_ACTION_TOOLS: no hacen trabajo real, son señales para que el navegador
-// haga algo en pantalla (abrir/cerrar el panel de texto).
 const UI_ACTION_TOOLS = new Set(['open_text_chat', 'close_text_chat']);
 
 const toolImplementations = {
@@ -38,19 +57,15 @@ const toolImplementations = {
 };
 
 const toolDeclarations = [
-  {
-    name: 'get_datetime',
-    description: 'Devuelve la fecha y hora actuales.',
-    parameters: { type: 'OBJECT', properties: {} },
-  },
+  { name: 'get_datetime', description: 'Devuelve la fecha y hora actuales.', parameters: { type: 'OBJECT', properties: {} } },
   {
     name: 'open_text_chat',
-    description: 'Abre/despliega el panel de chat de texto en la pantalla, para que el usuario vea la conversación escrita o pueda escribir. Úsala cuando el usuario pida ver el chat, el texto, la transcripción, o abrir/desplegar el panel de texto.',
+    description: 'Abre/despliega el panel de chat de texto en la pantalla. Úsala cuando el usuario pida ver el chat, el texto, la transcripción, o abrir/desplegar el panel de texto.',
     parameters: { type: 'OBJECT', properties: {} },
   },
   {
     name: 'close_text_chat',
-    description: 'Cierra el panel de chat de texto y regresa a la vista principal de voz. Úsala cuando el usuario pida cerrar el chat, ocultar el texto, o volver a la voz.',
+    description: 'Cierra el panel de chat de texto y regresa a la vista principal de voz.',
     parameters: { type: 'OBJECT', properties: {} },
   },
 ];
@@ -62,35 +77,48 @@ async function callGemini(contents) {
     systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
     tools: [{ functionDeclarations: toolDeclarations }],
   };
-
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Gemini API error ${res.status}: ${errText}`);
   }
-
   return res.json();
 }
 
-app.get('/api/history', async (_req, res) => {
+app.get('/api/conversations', async (_req, res) => {
   try {
-    const history = await db.loadHistory();
-    res.json({ history, memoryEnabled: db.isEnabled() });
+    res.json({ conversations: await db.listConversations() });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/history/clear', async (_req, res) => {
+app.post('/api/conversations', async (_req, res) => {
   try {
-    await db.clearHistory();
+    res.json(await db.createConversation());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/conversations/:id', async (req, res) => {
+  try {
+    await db.deleteConversation(req.params.id);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/history', async (req, res) => {
+  try {
+    const conversationId = req.query.conversationId;
+    const history = await db.loadHistory(conversationId);
+    res.json({ history, memoryEnabled: db.isEnabled() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -98,7 +126,7 @@ app.post('/api/history/clear', async (_req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, conversationId } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Falta "message" (string) en el body.' });
     }
@@ -106,11 +134,13 @@ app.post('/api/chat', async (req, res) => {
       return res.status(500).json({ error: 'El servidor no tiene configurada GEMINI_API_KEY.' });
     }
 
-    const pastHistory = await db.loadHistory();
+    const convId = await db.ensureConversation(conversationId);
+    const pastHistory = await db.loadHistory(convId);
     const userParts = [{ text: message }];
 
     let contents = [...pastHistory, { role: 'user', parts: userParts }];
-    await db.saveMessage('user', userParts);
+    await db.saveMessage(convId, 'user', userParts);
+    await db.maybeSetTitle(convId, message);
 
     let data = await callGemini(contents);
     let candidate = data.candidates?.[0];
@@ -124,10 +154,7 @@ app.post('/api/chat', async (req, res) => {
       contents = [
         ...contents,
         { role: 'model', parts },
-        {
-          role: 'function',
-          parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }],
-        },
+        { role: 'function', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
       ];
       data = await callGemini(contents);
       candidate = data.candidates?.[0];
@@ -135,9 +162,9 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const replyText = parts.map((p) => p.text).filter(Boolean).join('\n') || '(sin respuesta)';
-    await db.saveMessage('model', [{ text: replyText }]);
+    await db.saveMessage(convId, 'model', [{ text: replyText }]);
 
-    res.json({ reply: replyText, uiAction });
+    res.json({ reply: replyText, uiAction, conversationId: convId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -149,7 +176,5 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, memory:
 db.initDb()
   .catch((err) => console.error('Error inicializando la base de datos:', err))
   .finally(() => {
-    app.listen(PORT, () => {
-      console.log(`🧠 Jarvis MVP corriendo en http://localhost:${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`🧠 Jarvis corriendo en http://localhost:${PORT}`));
   });
