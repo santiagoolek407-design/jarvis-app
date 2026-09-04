@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,15 +17,12 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Personalidad base de tu asistente. Ajusta esto libremente.
 const SYSTEM_INSTRUCTION = `Eres JARVIS, el asistente personal de IA del usuario.
 Hablas en español por defecto (a menos que el usuario te escriba en otro idioma), de forma directa, cálida y ligeramente ingeniosa, como un mayordomo de confianza.
 Respuestas concisas cuando la pregunta es simple; detalladas cuando la tarea lo requiere.
-Si no puedes hacer algo todavía (por ejemplo, controlar una app externa), dilo con claridad y sugiere el siguiente paso.`;
+Si no puedes hacer algo todavía (por ejemplo, controlar una app externa), dilo con claridad y sugiere el siguiente paso.
+Tienes memoria de conversaciones anteriores con este usuario: úsala con naturalidad, como alguien que ya lo conoce.`;
 
-// --- Herramientas (tools) de ejemplo ---
-// Esto es la semilla de la Fase 2: darle a Jarvis acceso a "apps" reales.
-// Cada tool tiene una declaración (para que Gemini sepa cuándo usarla) y una función que la ejecuta.
 const toolImplementations = {
   get_datetime: () => {
     const now = new Date();
@@ -62,9 +60,28 @@ async function callGemini(contents) {
   return res.json();
 }
 
+app.get('/api/history', async (_req, res) => {
+  try {
+    const history = await db.loadHistory();
+    res.json({ history, memoryEnabled: db.isEnabled() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/history/clear', async (_req, res) => {
+  try {
+    await db.clearHistory();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Falta "message" (string) en el body.' });
     }
@@ -72,13 +89,16 @@ app.post('/api/chat', async (req, res) => {
       return res.status(500).json({ error: 'El servidor no tiene configurada GEMINI_API_KEY.' });
     }
 
-    let contents = [...history, { role: 'user', parts: [{ text: message }] }];
+    const pastHistory = await db.loadHistory();
+    const userParts = [{ text: message }];
+
+    let contents = [...pastHistory, { role: 'user', parts: userParts }];
+    await db.saveMessage('user', userParts);
 
     let data = await callGemini(contents);
     let candidate = data.candidates?.[0];
     let parts = candidate?.content?.parts || [];
 
-    // Si Gemini pide ejecutar una función, la corremos y le devolvemos el resultado.
     const functionCall = parts.find((p) => p.functionCall)?.functionCall;
     if (functionCall && toolImplementations[functionCall.name]) {
       const toolResult = toolImplementations[functionCall.name](functionCall.args || {});
@@ -96,22 +116,21 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const replyText = parts.map((p) => p.text).filter(Boolean).join('\n') || '(sin respuesta)';
+    await db.saveMessage('model', [{ text: replyText }]);
 
-    res.json({
-      reply: replyText,
-      history: [
-        ...contents,
-        { role: 'model', parts: [{ text: replyText }] },
-      ],
-    });
+    res.json({ reply: replyText });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, memory: db.isEnabled() }));
 
-app.listen(PORT, () => {
-  console.log(`🧠 Jarvis MVP corriendo en http://localhost:${PORT}`);
-});
+db.initDb()
+  .catch((err) => console.error('Error inicializando la base de datos:', err))
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`🧠 Jarvis MVP corriendo en http://localhost:${PORT}`);
+    });
+  });
