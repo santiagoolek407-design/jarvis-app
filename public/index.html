@@ -5,35 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JARVIS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="grid-bg"></div>
+
   <div class="hud">
-    <div class="corner-readouts">
-      <span id="modelName">—</span>
-      <span id="clock">--:--</span>
-    </div>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">JARVIS</span>
+      </div>
+      <div class="readouts">
+        <div class="readout"><span class="k">MODELO</span><span class="v" id="modelName">—</span></div>
+        <div class="readout"><span class="k">MEMORIA</span><span class="v" id="memStatus">—</span></div>
+        <div class="readout"><span class="k">HORA</span><span class="v" id="clock">--:--</span></div>
+      </div>
+    </header>
 
     <main class="stage">
-      <canvas id="orbCanvas" width="480" height="480"></canvas>
+      <div class="orb-wrap">
+        <canvas id="orbCanvas" width="480" height="480"></canvas>
+        <div class="orb-ring"></div>
+      </div>
 
       <div class="status" id="status">EN ESPERA</div>
-      <div class="caption" id="caption"></div>
 
       <div class="controls">
         <button class="talk-btn" id="talkBtn">
-          <svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
           <span id="talkBtnLabel">Toca para hablar</span>
         </button>
-        <button class="chat-toggle" id="chatToggle">Chat de texto</button>
+        <button class="chat-toggle" id="chatToggle" title="Abrir chat de texto">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H8l-4 4V6a1 1 0 011-1z"/></svg>
+          <span>Chat de texto</span>
+        </button>
       </div>
+
+      <p class="hint">También puedes decir <em>"abre el chat de texto"</em></p>
     </main>
 
     <aside class="drawer" id="drawer">
       <div class="drawer-header">
-        <span>TRANSCRIPCIÓN</span>
-        <button class="drawer-close" id="drawerClose">✕</button>
+        <span class="drawer-title">TRANSCRIPCIÓN</span>
+        <div class="drawer-actions">
+          <button class="icon-btn icon-btn-accent" id="backToVoice" title="Volver a la voz">
+            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
+          </button>
+          <button class="icon-btn" id="drawerClose" title="Cerrar">✕</button>
+        </div>
       </div>
       <div class="thread" id="thread"></div>
       <form class="composer" id="composer">
