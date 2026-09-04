@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS · Iniciar sesión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { display: flex; align-items: center; justify-content: center; overflow: auto; }
+  .login-card {
+    width: min(340px, 88vw);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .login-card .brand-name { display: block; margin-bottom: 22px; font-size: 13px; }
+  .login-card input {
+    width: 100%;
+    background: rgba(90, 130, 190, 0.06);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .login-card input:focus { outline: none; border-color: var(--blue-dim); }
+  .login-card button {
+    width: 100%;
+    background: var(--blue);
+    color: #04060B;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .login-card button:hover { background: var(--blue-bright); }
+  .login-error { color: #ff7676; font-size: 12px; margin-top: 12px; min-height: 16px; }
+</style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="login-card">
+    <span class="brand-name" style="font-family:var(--mono); letter-spacing:0.22em; color:var(--text-dim);">JARVIS</span>
+    <form id="loginForm">
+      <input type="password" id="password" placeholder="Contraseña" autocomplete="current-password" autofocus />
+      <button type="submit">Entrar</button>
+    </form>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const errorEl = document.getElementById('loginError');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.textContent = '';
+      const password = document.getElementById('password').value;
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errorEl.textContent = data.error || 'Error al iniciar sesión'; return; }
+        window.location.href = '/';
+      } catch (err) {
+        errorEl.textContent = 'No se pudo conectar con el servidor.';
+      }
+    });
+  </script>
+</body>
+</html>
