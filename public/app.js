@@ -13,11 +13,10 @@ const input = document.getElementById('input');
 const modelNameEl = document.getElementById('modelName');
 const clockEl = document.getElementById('clock');
 
-let history = [];
 let state = 'idle'; // idle | listening | thinking | speaking
 let conversationActive = false; // true mientras el ciclo de voz continua está corriendo
 
-// ============ Reloj y salud ============
+// ============ Reloj, salud y carga de memoria previa ============
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }, 1000);
@@ -25,6 +24,15 @@ setInterval(() => {
 fetch('/api/health').then((r) => r.json()).then((d) => {
   modelNameEl.textContent = d.model || '—';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
+
+// Al abrir la página, trae la conversación guardada y la pinta en el chat de texto
+// (sin hacerla hablar en voz alta, solo para que quede el registro).
+fetch('/api/history').then((r) => r.json()).then((d) => {
+  (d.history || []).forEach((msg) => {
+    const text = (msg.parts || []).map((p) => p.text).filter(Boolean).join('\n');
+    if (text) addMessage(msg.role === 'user' ? 'user' : 'model', text);
+  });
+}).catch(() => {});
 
 // ============ Esfera de partículas (canvas) ============
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -83,7 +91,7 @@ function draw() {
   }).sort((a, b) => a.z - b.z);
 
   for (const p of rotated) {
-    const depth = (p.z + 1) / 2; // 0..1
+    const depth = (p.z + 1) / 2;
     const sx = cx + p.x * radius;
     const sy = cy + p.y * radius;
     const r = 0.6 + depth * 1.8;
@@ -127,12 +135,11 @@ async function sendMessage(text) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, history }),
+      body: JSON.stringify({ message: text }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
-    history = data.history;
     addMessage('model', data.reply);
     speak(data.reply);
   } catch (err) {
@@ -154,7 +161,6 @@ function speak(text) {
   utter.onstart = () => setState('speaking');
   utter.onend = () => {
     setState('idle');
-    // Si el modo conversación sigue activo, vuelve a escuchar automáticamente.
     if (conversationActive) startListening();
   };
   utter.onerror = () => { setState('idle'); if (conversationActive) startListening(); };
@@ -180,7 +186,6 @@ if (SpeechRecognition) {
   };
   recognition.onerror = (event) => {
     if (event.error === 'no-speech' && conversationActive) {
-      // Nadie dijo nada: reintenta en vez de morir en silencio.
       startListening();
     } else {
       setState('idle');
