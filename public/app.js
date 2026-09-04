@@ -1,4 +1,4 @@
-// ============ Referencias DOM ============
+ // ============ Referencias DOM ============
 const canvas = document.getElementById('orbCanvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
@@ -7,26 +7,26 @@ const talkBtnLabel = document.getElementById('talkBtnLabel');
 const chatToggle = document.getElementById('chatToggle');
 const drawer = document.getElementById('drawer');
 const drawerClose = document.getElementById('drawerClose');
+const backToVoice = document.getElementById('backToVoice');
 const thread = document.getElementById('thread');
 const composer = document.getElementById('composer');
 const input = document.getElementById('input');
 const modelNameEl = document.getElementById('modelName');
+const memStatusEl = document.getElementById('memStatus');
 const clockEl = document.getElementById('clock');
 
-let state = 'idle'; // idle | listening | thinking | speaking
-let conversationActive = false; // true mientras el ciclo de voz continua está corriendo
+let state = 'idle';
+let conversationActive = false;
 
-// ============ Reloj, salud y carga de memoria previa ============
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }, 1000);
 
 fetch('/api/health').then((r) => r.json()).then((d) => {
   modelNameEl.textContent = d.model || '—';
+  memStatusEl.textContent = d.memory ? 'ACTIVA' : 'INACTIVA';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
 
-// Al abrir la página, trae la conversación guardada y la pinta en el chat de texto
-// (sin hacerla hablar en voz alta, solo para que quede el registro).
 fetch('/api/history').then((r) => r.json()).then((d) => {
   (d.history || []).forEach((msg) => {
     const text = (msg.parts || []).map((p) => p.text).filter(Boolean).join('\n');
@@ -34,7 +34,6 @@ fetch('/api/history').then((r) => r.json()).then((d) => {
   });
 }).catch(() => {});
 
-// ============ Esfera de partículas (canvas) ============
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 function resizeCanvas() {
   const size = canvas.clientWidth || 420;
@@ -107,7 +106,6 @@ function draw() {
 }
 requestAnimationFrame(draw);
 
-// ============ Estado / UI ============
 const STATUS_LABEL = { idle: 'EN ESPERA', listening: 'ESCUCHANDO', thinking: 'PENSANDO', speaking: 'HABLANDO' };
 
 function setState(next) {
@@ -126,7 +124,6 @@ function addMessage(role, text) {
   thread.scrollTop = thread.scrollHeight;
 }
 
-// ============ Conversación con el backend ============
 async function sendMessage(text) {
   addMessage('user', text);
   setState('thinking');
@@ -141,6 +138,8 @@ async function sendMessage(text) {
     if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
     addMessage('model', data.reply);
+    if (data.uiAction === 'open_text_chat') drawer.classList.add('open');
+    if (data.uiAction === 'close_text_chat') drawer.classList.remove('open');
     speak(data.reply);
   } catch (err) {
     addMessage('model', `⚠️ ${err.message}`);
@@ -148,7 +147,6 @@ async function sendMessage(text) {
   }
 }
 
-// ============ Voz: síntesis (TTS) ============
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     setState('idle');
@@ -169,7 +167,6 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
-// ============ Voz: reconocimiento (STT) ============
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 
@@ -203,7 +200,6 @@ function startListening() {
   try { recognition.start(); } catch (_e) { /* ya estaba escuchando */ }
 }
 
-// ============ Botón principal: conversación continua ============
 talkBtn.addEventListener('click', () => {
   if (!recognition) return;
 
@@ -219,7 +215,6 @@ talkBtn.addEventListener('click', () => {
   }
 });
 
-// ============ Chat de texto (secundario) ============
 composer.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -230,3 +225,4 @@ composer.addEventListener('submit', (e) => {
 
 chatToggle.addEventListener('click', () => drawer.classList.add('open'));
 drawerClose.addEventListener('click', () => drawer.classList.remove('open'));
+backToVoice.addEventListener('click', () => drawer.classList.remove('open'));
