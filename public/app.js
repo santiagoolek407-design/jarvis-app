@@ -1,13 +1,15 @@
- // ============ Referencias DOM ============
+// ============ Referencias DOM ============
 const canvas = document.getElementById('orbCanvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 const talkBtn = document.getElementById('talkBtn');
 const talkBtnLabel = document.getElementById('talkBtnLabel');
 const chatToggle = document.getElementById('chatToggle');
-const drawer = document.getElementById('drawer');
-const drawerClose = document.getElementById('drawerClose');
+const voiceScreen = document.getElementById('voiceScreen');
+const chatScreen = document.getElementById('chatScreen');
 const backToVoice = document.getElementById('backToVoice');
+const newChatBtn = document.getElementById('newChatBtn');
+const convList = document.getElementById('convList');
 const thread = document.getElementById('thread');
 const composer = document.getElementById('composer');
 const input = document.getElementById('input');
@@ -17,6 +19,7 @@ const clockEl = document.getElementById('clock');
 
 let state = 'idle';
 let conversationActive = false;
+let currentConversationId = localStorage.getItem('jarvis_current_conversation') || null;
 
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -27,12 +30,62 @@ fetch('/api/health').then((r) => r.json()).then((d) => {
   memStatusEl.textContent = d.memory ? 'ACTIVA' : 'INACTIVA';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
 
-fetch('/api/history').then((r) => r.json()).then((d) => {
-  (d.history || []).forEach((msg) => {
+async function refreshConversations() {
+  const res = await fetch('/api/conversations');
+  const data = await res.json();
+  const conversations = data.conversations || [];
+
+  convList.innerHTML = '';
+  conversations.forEach((c) => {
+    const item = document.createElement('div');
+    item.className = 'conv-item' + (String(c.id) === String(currentConversationId) ? ' active' : '');
+    item.textContent = c.title || 'Nueva conversación';
+    item.addEventListener('click', () => selectConversation(c.id));
+    convList.appendChild(item);
+  });
+
+  if (!currentConversationId && conversations.length > 0) {
+    selectConversation(conversations[0].id);
+  } else if (conversations.length === 0) {
+    await createNewConversation();
+  }
+}
+
+async function createNewConversation() {
+  const res = await fetch('/api/conversations', { method: 'POST' });
+  const conv = await res.json();
+  await selectConversation(conv.id);
+  await refreshConversations();
+}
+
+async function selectConversation(id) {
+  currentConversationId = id;
+  localStorage.setItem('jarvis_current_conversation', id);
+  thread.innerHTML = '';
+
+  const res = await fetch(`/api/history?conversationId=${id}`);
+  const data = await res.json();
+  (data.history || []).forEach((msg) => {
     const text = (msg.parts || []).map((p) => p.text).filter(Boolean).join('\n');
     if (text) addMessage(msg.role === 'user' ? 'user' : 'model', text);
   });
-}).catch(() => {});
+
+  [...convList.children].forEach((el, i) => el.classList.remove('active'));
+  refreshConversations();
+}
+
+newChatBtn.addEventListener('click', createNewConversation);
+
+function openChatScreen() {
+  chatScreen.classList.add('open');
+  refreshConversations();
+}
+function closeChatScreen() {
+  chatScreen.classList.remove('open');
+}
+
+chatToggle.addEventListener('click', openChatScreen);
+backToVoice.addEventListener('click', closeChatScreen);
 
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 function resizeCanvas() {
@@ -82,11 +135,7 @@ function draw() {
 
   const rotated = POINTS.map((p) => {
     const cosA = Math.cos(angle), sinA = Math.sin(angle);
-    return {
-      x: p.x * cosA + p.z * sinA,
-      y: p.y,
-      z: -p.x * sinA + p.z * cosA,
-    };
+    return { x: p.x * cosA + p.z * sinA, y: p.y, z: -p.x * sinA + p.z * cosA };
   }).sort((a, b) => a.z - b.z);
 
   for (const p of rotated) {
@@ -129,17 +178,24 @@ async function sendMessage(text) {
   setState('thinking');
 
   try {
+    if (!currentConversationId) {
+      const res = await fetch('/api/conversations', { method: 'POST' });
+      const conv = await res.json();
+      currentConversationId = conv.id;
+      localStorage.setItem('jarvis_current_conversation', conv.id);
+    }
+
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ message: text, conversationId: currentConversationId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
     addMessage('model', data.reply);
-    if (data.uiAction === 'open_text_chat') drawer.classList.add('open');
-    if (data.uiAction === 'close_text_chat') drawer.classList.remove('open');
+    if (data.uiAction === 'open_text_chat') openChatScreen();
+    if (data.uiAction === 'close_text_chat') closeChatScreen();
     speak(data.reply);
   } catch (err) {
     addMessage('model', `⚠️ ${err.message}`);
@@ -148,19 +204,13 @@ async function sendMessage(text) {
 }
 
 function speak(text) {
-  if (!('speechSynthesis' in window)) {
-    setState('idle');
-    return;
-  }
+  if (!('speechSynthesis' in window)) { setState('idle'); return; }
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'es-MX';
   utter.rate = 1.02;
 
   utter.onstart = () => setState('speaking');
-  utter.onend = () => {
-    setState('idle');
-    if (conversationActive) startListening();
-  };
+  utter.onend = () => { setState('idle'); if (conversationActive) startListening(); };
   utter.onerror = () => { setState('idle'); if (conversationActive) startListening(); };
 
   window.speechSynthesis.cancel();
@@ -177,10 +227,7 @@ if (SpeechRecognition) {
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => setState('listening');
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    sendMessage(transcript);
-  };
+  recognition.onresult = (event) => sendMessage(event.results[0][0].transcript);
   recognition.onerror = (event) => {
     if (event.error === 'no-speech' && conversationActive) {
       startListening();
@@ -202,7 +249,6 @@ function startListening() {
 
 talkBtn.addEventListener('click', () => {
   if (!recognition) return;
-
   if (conversationActive) {
     conversationActive = false;
     window.speechSynthesis.cancel();
@@ -222,7 +268,3 @@ composer.addEventListener('submit', (e) => {
   input.value = '';
   sendMessage(text);
 });
-
-chatToggle.addEventListener('click', () => drawer.classList.add('open'));
-drawerClose.addEventListener('click', () => drawer.classList.remove('open'));
-backToVoice.addEventListener('click', () => drawer.classList.remove('open'));
