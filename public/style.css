@@ -218,6 +218,79 @@ html, body {
 }
 .back-to-voice-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
 
+.sidebar-bottom { display: flex; flex-direction: column; gap: 6px; }
+
+.sidebar-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 9px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 13px;
+  text-align: left;
+}
+.sidebar-btn:hover { background: rgba(90, 130, 190, 0.07); color: var(--text); }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 3, 5, 0.7);
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+
+.modal-card {
+  width: min(400px, 90vw);
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px 26px 20px;
+}
+.modal-card h2 { margin: 0 0 20px; font-size: 17px; }
+.modal-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+.modal-label:first-of-type { margin-top: 0; }
+.modal-card input, .modal-card select {
+  width: 100%;
+  background: rgba(90, 130, 190, 0.06);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+}
+.modal-card input:focus, .modal-card select:focus { outline: none; border-color: var(--blue-dim); }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+.modal-cancel, .modal-save {
+  flex: 1;
+  padding: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12.5px;
+  border: none;
+}
+.modal-cancel { background: rgba(90, 130, 190, 0.08); color: var(--text-dim); }
+.modal-cancel:hover { color: var(--text); }
+.modal-save { background: var(--blue); color: #04060B; }
+.modal-save:hover { background: var(--blue-bright); }
+
 .chat-main {
   flex: 1;
   display: flex;
