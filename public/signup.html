@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS · Crear cuenta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="auth-card">
+    <span class="auth-brand">JARVIS</span>
+    <h1>Crea tu cuenta</h1>
+    <form id="form">
+      <input type="email" id="email" placeholder="Correo" autocomplete="email" autofocus required />
+      <input type="password" id="password" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="new-password" required minlength="6" />
+      <button type="submit">Crear cuenta</button>
+    </form>
+    <div class="auth-error" id="error"></div>
+    <p class="auth-switch">¿Ya tienes cuenta? <a href="/login.html">Inicia sesión</a></p>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const errorEl = document.getElementById('error');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.textContent = '';
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errorEl.textContent = data.error || 'Error al crear la cuenta'; return; }
+        window.location.href = '/';
+      } catch (err) {
+        errorEl.textContent = 'No se pudo conectar con el servidor.';
+      }
+    });
+  </script>
+</body>
+</html>
