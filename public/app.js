@@ -10,6 +10,14 @@ const chatScreen = document.getElementById('chatScreen');
 const backToVoice = document.getElementById('backToVoice');
 const newChatBtn = document.getElementById('newChatBtn');
 const convList = document.getElementById('convList');
+const settingsBtn = document.getElementById('settingsBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const settingsModal = document.getElementById('settingsModal');
+const assistantNameInput = document.getElementById('assistantNameInput');
+const userNameInput = document.getElementById('userNameInput');
+const voiceSelect = document.getElementById('voiceSelect');
+const settingsCancel = document.getElementById('settingsCancel');
+const settingsSave = document.getElementById('settingsSave');
 const thread = document.getElementById('thread');
 const composer = document.getElementById('composer');
 const input = document.getElementById('input');
@@ -20,6 +28,8 @@ const clockEl = document.getElementById('clock');
 let state = 'idle';
 let conversationActive = false;
 let currentConversationId = localStorage.getItem('jarvis_current_conversation') || null;
+let assistantName = 'Jarvis';
+let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
 
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -29,6 +39,72 @@ fetch('/api/health').then((r) => r.json()).then((d) => {
   modelNameEl.textContent = d.model || '—';
   memStatusEl.textContent = d.memory ? 'ACTIVA' : 'INACTIVA';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
+
+function applyAssistantName(name) {
+  assistantName = name || 'Jarvis';
+  document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = assistantName.toUpperCase(); });
+  document.title = assistantName;
+}
+
+function populateVoiceOptions() {
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  voiceSelect.innerHTML = '';
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = 'Voz por defecto del navegador';
+  voiceSelect.appendChild(defaultOpt);
+
+  voices.forEach((v) => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (v.voiceURI === selectedVoiceURI) opt.selected = true;
+    voiceSelect.appendChild(opt);
+  });
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = populateVoiceOptions;
+  populateVoiceOptions();
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    applyAssistantName(data.assistantName);
+    assistantNameInput.value = data.assistantName || '';
+    userNameInput.value = data.userDisplayName || '';
+  } catch (_e) { /* si falla, se queda con los valores por defecto */ }
+}
+loadSettings();
+
+function openSettings() { settingsModal.classList.add('open'); populateVoiceOptions(); }
+function closeSettings() { settingsModal.classList.remove('open'); }
+
+settingsBtn.addEventListener('click', openSettings);
+settingsCancel.addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
+
+settingsSave.addEventListener('click', async () => {
+  const newAssistantName = assistantNameInput.value.trim() || 'Jarvis';
+  const newUserName = userNameInput.value.trim();
+  selectedVoiceURI = voiceSelect.value || null;
+  if (selectedVoiceURI) localStorage.setItem('jarvis_voice_uri', selectedVoiceURI);
+  else localStorage.removeItem('jarvis_voice_uri');
+
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assistantName: newAssistantName, userDisplayName: newUserName }),
+  });
+  applyAssistantName(newAssistantName);
+  closeSettings();
+});
+
+logoutBtn.addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+});
 
 async function refreshConversations() {
   const res = await fetch('/api/conversations');
@@ -167,7 +243,7 @@ function setState(next) {
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'user' ? 'user' : 'model');
-  div.innerHTML = `<div class="msg-label">${role === 'user' ? 'TÚ' : 'JARVIS'}</div><div class="msg-text"></div>`;
+  div.innerHTML = `<div class="msg-label">${role === 'user' ? 'TÚ' : assistantName.toUpperCase()}</div><div class="msg-text"></div>`;
   div.querySelector('.msg-text').textContent = text;
   thread.appendChild(div);
   thread.scrollTop = thread.scrollHeight;
@@ -206,8 +282,16 @@ async function sendMessage(text) {
 function speak(text) {
   if (!('speechSynthesis' in window)) { setState('idle'); return; }
   const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'es-MX';
   utter.rate = 1.02;
+
+  const voices = window.speechSynthesis.getVoices();
+  const chosen = selectedVoiceURI && voices.find((v) => v.voiceURI === selectedVoiceURI);
+  if (chosen) {
+    utter.voice = chosen;
+    utter.lang = chosen.lang;
+  } else {
+    utter.lang = 'es-MX';
+  }
 
   utter.onstart = () => setState('speaking');
   utter.onend = () => { setState('idle'); if (conversationActive) startListening(); };
