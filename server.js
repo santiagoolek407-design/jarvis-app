@@ -7,11 +7,11 @@ const auth = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 
-if (!GEMINI_API_KEY) {
-  console.warn('⚠️  No se encontró GEMINI_API_KEY. El chat fallará hasta que la configures.');
+if (!ANTHROPIC_API_KEY) {
+  console.warn('⚠️  No se encontró ANTHROPIC_API_KEY. El chat fallará hasta que la configures.');
 }
 
 app.use(cors());
@@ -85,34 +85,38 @@ const toolImplementations = {
 };
 
 const toolDeclarations = [
-  { name: 'get_datetime', description: 'Devuelve la fecha y hora actuales.', parameters: { type: 'OBJECT', properties: {} } },
+  { name: 'get_datetime', description: 'Devuelve la fecha y hora actuales.', input_schema: { type: 'object', properties: {} } },
   {
     name: 'open_text_chat',
     description: 'Abre/despliega el panel de chat de texto en la pantalla. Úsala cuando el usuario pida ver el chat, el texto, la transcripción, o abrir/desplegar el panel de texto.',
-    parameters: { type: 'OBJECT', properties: {} },
+    input_schema: { type: 'object', properties: {} },
   },
   {
     name: 'close_text_chat',
     description: 'Cierra el panel de chat de texto y regresa a la vista principal de voz.',
-    parameters: { type: 'OBJECT', properties: {} },
+    input_schema: { type: 'object', properties: {} },
   },
 ];
 
-async function callGemini(contents, systemInstruction) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const body = {
-    contents,
-    systemInstruction: { parts: [{ text: systemInstruction }] },
-    tools: [{ functionDeclarations: toolDeclarations }],
-  };
-  const res = await fetch(url, {
+async function callClaude(messages, systemInstruction) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1024,
+      system: systemInstruction,
+      messages,
+      tools: toolDeclarations,
+    }),
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${errText}`);
+    throw new Error(`Claude API error ${res.status}: ${errText}`);
   }
   return res.json();
 }
@@ -176,8 +180,8 @@ app.post('/api/chat', async (req, res) => {
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Falta "message" (string) en el body.' });
     }
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'El servidor no tiene configurada GEMINI_API_KEY.' });
+    if (!ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'El servidor no tiene configurada ANTHROPIC_API_KEY.' });
     }
 
     const convId = await db.ensureConversation(req.userId, conversationId);
@@ -189,30 +193,34 @@ app.post('/api/chat', async (req, res) => {
       userDisplayName: settings.user_display_name,
     });
 
-    let contents = [...pastHistory, { role: 'user', parts: userParts }];
     await db.saveMessage(convId, 'user', userParts);
     await db.maybeSetTitle(convId, message);
 
-    let data = await callGemini(contents, systemInstruction);
-    let candidate = data.candidates?.[0];
-    let parts = candidate?.content?.parts || [];
+    let claudeMessages = [...pastHistory, { role: 'user', parts: userParts }].map((m) => ({
+      role: m.role === 'model' ? 'assistant' : 'user',
+      content: (m.parts || []).map((p) => p.text).filter(Boolean).join('\n'),
+    }));
 
-    const functionCall = parts.find((p) => p.functionCall)?.functionCall;
+    let data = await callClaude(claudeMessages, systemInstruction);
+    let blocks = data.content || [];
     let uiAction = null;
-    if (functionCall && toolImplementations[functionCall.name]) {
-      if (UI_ACTION_TOOLS.has(functionCall.name)) uiAction = functionCall.name;
-      const toolResult = toolImplementations[functionCall.name](functionCall.args || {});
-      contents = [
-        ...contents,
-        { role: 'model', parts },
-        { role: 'function', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
-      ];
-      data = await callGemini(contents, systemInstruction);
-      candidate = data.candidates?.[0];
-      parts = candidate?.content?.parts || [];
+
+    if (data.stop_reason === 'tool_use') {
+      const toolUse = blocks.find((b) => b.type === 'tool_use');
+      if (toolUse && toolImplementations[toolUse.name]) {
+        if (UI_ACTION_TOOLS.has(toolUse.name)) uiAction = toolUse.name;
+        const toolResult = toolImplementations[toolUse.name](toolUse.input || {});
+        claudeMessages = [
+          ...claudeMessages,
+          { role: 'assistant', content: blocks },
+          { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: JSON.stringify(toolResult) }] },
+        ];
+        data = await callClaude(claudeMessages, systemInstruction);
+        blocks = data.content || [];
+      }
     }
 
-    const replyText = parts.map((p) => p.text).filter(Boolean).join('\n') || '(sin respuesta)';
+    const replyText = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n') || '(sin respuesta)';
     await db.saveMessage(convId, 'model', [{ text: replyText }]);
 
     res.json({ reply: replyText, uiAction, conversationId: convId });
@@ -222,7 +230,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, memory: db.isEnabled() }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, provider: 'anthropic', memory: db.isEnabled() }));
 
 db.initDb()
   .catch((err) => console.error('Error inicializando la base de datos:', err))
