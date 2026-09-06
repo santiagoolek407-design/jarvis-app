@@ -54,10 +54,20 @@
         Nueva conversación
       </button>
       <div class="conv-list" id="convList"></div>
-      <button class="back-to-voice-btn" id="backToVoice">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
-        Volver a la voz
-      </button>
+      <div class="sidebar-bottom">
+        <button class="sidebar-btn" id="settingsBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a7.95 7.95 0 00-.14-1.5l2.11-1.65-2-3.46-2.49 1a8.03 8.03 0 00-2.6-1.5l-.38-2.64h-4l-.38 2.64a8.03 8.03 0 00-2.6 1.5l-2.49-1-2 3.46 2.11 1.65a7.95 7.95 0 000 3l-2.11 1.65 2 3.46 2.49-1a8.03 8.03 0 002.6 1.5l.38 2.64h4l.38-2.64a8.03 8.03 0 002.6-1.5l2.49 1 2-3.46-2.11-1.65c.09-.5.14-1 .14-1.5z"/></svg>
+          Configuración
+        </button>
+        <button class="sidebar-btn" id="logoutBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M16 13v-2H7V8l-5 4 5 4v-3zM20 3H10a1 1 0 00-1 1v4h2V5h8v14h-8v-3H9v4a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1z"/></svg>
+          Cerrar sesión
+        </button>
+        <button class="back-to-voice-btn" id="backToVoice">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
+          Volver a la voz
+        </button>
+      </div>
     </aside>
 
     <div class="chat-main">
@@ -66,6 +76,26 @@
         <input type="text" id="input" placeholder="Escribe un mensaje…" autocomplete="off" />
         <button type="submit" class="send-btn">Enviar</button>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-card">
+      <h2>Configuración</h2>
+
+      <label class="modal-label">Nombre del asistente</label>
+      <input type="text" id="assistantNameInput" placeholder="Jarvis" />
+
+      <label class="modal-label">¿Cómo quieres que te llame?</label>
+      <input type="text" id="userNameInput" placeholder="Tu nombre o apodo (opcional)" />
+
+      <label class="modal-label">Voz</label>
+      <select id="voiceSelect"></select>
+
+      <div class="modal-actions">
+        <button class="modal-cancel" id="settingsCancel">Cancelar</button>
+        <button class="modal-save" id="settingsSave">Guardar</button>
+      </div>
     </div>
   </div>
 
