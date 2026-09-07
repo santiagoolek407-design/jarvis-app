@@ -47,6 +47,7 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE;`);
 
   console.log('🗄️  Base de datos lista (users + conversations + messages).');
 }
