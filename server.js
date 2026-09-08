@@ -205,7 +205,7 @@ app.post('/api/chat', async (req, res) => {
       contents = [
         ...contents,
         { role: 'model', parts },
-        { role: 'function', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
+      { role: 'user', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
       ];
       data = await callGemini(contents, systemInstruction);
       candidate = data.candidates?.[0];
