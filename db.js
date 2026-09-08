@@ -27,6 +27,7 @@ async function initDb() {
   `);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_name TEXT NOT NULL DEFAULT 'Jarvis';`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_display_name TEXT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS voice_id TEXT;`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS conversations (
@@ -67,16 +68,16 @@ async function getUserByEmail(email) {
 
 async function getSettings(userId) {
   const { rows } = await pool.query(
-    'SELECT assistant_name, user_display_name FROM users WHERE id = $1',
+    'SELECT assistant_name, user_display_name, voice_id FROM users WHERE id = $1',
     [userId]
   );
-  return rows[0] || { assistant_name: 'Jarvis', user_display_name: null };
+  return rows[0] || { assistant_name: 'Jarvis', user_display_name: null, voice_id: null };
 }
 
-async function updateSettings(userId, { assistantName, userDisplayName }) {
+async function updateSettings(userId, { assistantName, userDisplayName, voiceId }) {
   await pool.query(
-    'UPDATE users SET assistant_name = $1, user_display_name = $2 WHERE id = $3',
-    [assistantName || 'Jarvis', userDisplayName || null, userId]
+    'UPDATE users SET assistant_name = $1, user_display_name = $2, voice_id = $3 WHERE id = $4',
+    [assistantName || 'Jarvis', userDisplayName || null, voiceId || null, userId]
   );
 }
 
