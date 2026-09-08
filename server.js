@@ -9,9 +9,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_flash_v2_5'; // el más rápido, ideal para conversación
+const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // voz "Rachel" (premade), usada si el usuario no eligió otra
 
 if (!GEMINI_API_KEY) {
   console.warn('⚠️  No se encontró GEMINI_API_KEY. El chat fallará hasta que la configures.');
+}
+if (!ELEVENLABS_API_KEY) {
+  console.warn('⚠️  No se encontró ELEVENLABS_API_KEY. La voz de ElevenLabs no funcionará hasta que la configures.');
 }
 
 app.use(cors());
@@ -120,7 +126,7 @@ async function callGemini(contents, systemInstruction) {
 app.get('/api/settings', async (req, res) => {
   try {
     const s = await db.getSettings(req.userId);
-    res.json({ assistantName: s.assistant_name, userDisplayName: s.user_display_name });
+    res.json({ assistantName: s.assistant_name, userDisplayName: s.user_display_name, voiceId: s.voice_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -128,10 +134,56 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', async (req, res) => {
   try {
-    const { assistantName, userDisplayName } = req.body || {};
-    await db.updateSettings(req.userId, { assistantName, userDisplayName });
+    const { assistantName, userDisplayName, voiceId } = req.body || {};
+    await db.updateSettings(req.userId, { assistantName, userDisplayName, voiceId });
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/voices', async (_req, res) => {
+  try {
+    if (!ELEVENLABS_API_KEY) return res.status(500).json({ error: 'No hay ELEVENLABS_API_KEY configurada.' });
+    const r = await fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+    });
+    if (!r.ok) throw new Error(`ElevenLabs error ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    const voices = (data.voices || []).map((v) => ({ voice_id: v.voice_id, name: v.name }));
+    res.json({ voices });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/tts', async (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text) return res.status(400).json({ error: 'Falta "text" en el body.' });
+    if (!ELEVENLABS_API_KEY) return res.status(500).json({ error: 'No hay ELEVENLABS_API_KEY configurada.' });
+
+    const settings = await db.getSettings(req.userId);
+    const voiceId = settings.voice_id || DEFAULT_VOICE_ID;
+
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_MODEL,
+      }),
+    });
+    if (!r.ok) throw new Error(`ElevenLabs error ${r.status}: ${await r.text()}`);
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    const buffer = Buffer.from(await r.arrayBuffer());
+    res.send(buffer);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -205,7 +257,7 @@ app.post('/api/chat', async (req, res) => {
       contents = [
         ...contents,
         { role: 'model', parts },
-      { role: 'user', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
+        { role: 'user', parts: [{ functionResponse: { name: functionCall.name, response: toolResult } }] },
       ];
       data = await callGemini(contents, systemInstruction);
       candidate = data.candidates?.[0];
