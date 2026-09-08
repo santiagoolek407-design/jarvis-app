@@ -29,8 +29,7 @@ let state = 'idle';
 let conversationActive = false;
 let currentConversationId = localStorage.getItem('jarvis_current_conversation') || null;
 let assistantName = 'Jarvis';
-let selectedVoiceId = null;
-const ttsAudio = new Audio();
+let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
 
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -47,25 +46,25 @@ function applyAssistantName(name) {
   document.title = assistantName;
 }
 
-async function populateVoiceOptions() {
-  voiceSelect.innerHTML = '<option value="">Cargando voces…</option>';
-  try {
-    const res = await fetch('/api/voices');
-    const data = await res.json();
-    voiceSelect.innerHTML = '';
-    (data.voices || []).forEach((v) => {
-      const opt = document.createElement('option');
-      opt.value = v.voice_id;
-      opt.textContent = v.name;
-      if (v.voice_id === selectedVoiceId) opt.selected = true;
-      voiceSelect.appendChild(opt);
-    });
-    if (!data.voices || data.voices.length === 0) {
-      voiceSelect.innerHTML = '<option value="">No se encontraron voces</option>';
-    }
-  } catch (_e) {
-    voiceSelect.innerHTML = '<option value="">No se pudieron cargar las voces</option>';
-  }
+function populateVoiceOptions() {
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  voiceSelect.innerHTML = '';
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = 'Voz por defecto del navegador';
+  voiceSelect.appendChild(defaultOpt);
+
+  voices.forEach((v) => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (v.voiceURI === selectedVoiceURI) opt.selected = true;
+    voiceSelect.appendChild(opt);
+  });
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = populateVoiceOptions;
+  populateVoiceOptions();
 }
 
 async function loadSettings() {
@@ -75,7 +74,6 @@ async function loadSettings() {
     applyAssistantName(data.assistantName);
     assistantNameInput.value = data.assistantName || '';
     userNameInput.value = data.userDisplayName || '';
-    selectedVoiceId = data.voiceId || null;
   } catch (_e) { /* si falla, se queda con los valores por defecto */ }
 }
 loadSettings();
@@ -90,12 +88,14 @@ settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal)
 settingsSave.addEventListener('click', async () => {
   const newAssistantName = assistantNameInput.value.trim() || 'Jarvis';
   const newUserName = userNameInput.value.trim();
-  selectedVoiceId = voiceSelect.value || null;
+  selectedVoiceURI = voiceSelect.value || null;
+  if (selectedVoiceURI) localStorage.setItem('jarvis_voice_uri', selectedVoiceURI);
+  else localStorage.removeItem('jarvis_voice_uri');
 
   await fetch('/api/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ assistantName: newAssistantName, userDisplayName: newUserName, voiceId: selectedVoiceId }),
+    body: JSON.stringify({ assistantName: newAssistantName, userDisplayName: newUserName }),
   });
   applyAssistantName(newAssistantName);
   closeSettings();
@@ -279,35 +279,27 @@ async function sendMessage(text) {
   }
 }
 
-async function speak(text) {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error('No se pudo generar el audio.');
+function speak(text) {
+  if (!('speechSynthesis' in window)) { setState('idle'); return; }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.02;
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    ttsAudio.src = url;
-    await ttsAudio.play();
-  } catch (_e) {
-    setState('idle');
-    if (conversationActive) startListening();
+  const voices = window.speechSynthesis.getVoices();
+  const chosen = selectedVoiceURI && voices.find((v) => v.voiceURI === selectedVoiceURI);
+  if (chosen) {
+    utter.voice = chosen;
+    utter.lang = chosen.lang;
+  } else {
+    utter.lang = 'es-MX';
   }
-}
 
-ttsAudio.addEventListener('play', () => setState('speaking'));
-ttsAudio.addEventListener('ended', () => {
-  URL.revokeObjectURL(ttsAudio.src);
-  setState('idle');
-  if (conversationActive) startListening();
-});
-ttsAudio.addEventListener('error', () => {
-  setState('idle');
-  if (conversationActive) startListening();
-});
+  utter.onstart = () => setState('speaking');
+  utter.onend = () => { setState('idle'); if (conversationActive) startListening(); };
+  utter.onerror = () => { setState('idle'); if (conversationActive) startListening(); };
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
@@ -343,7 +335,7 @@ talkBtn.addEventListener('click', () => {
   if (!recognition) return;
   if (conversationActive) {
     conversationActive = false;
-    ttsAudio.pause();
+    window.speechSynthesis.cancel();
     recognition.stop();
     setState('idle');
   } else {
