@@ -38,6 +38,7 @@ async function initDb() {
     );
   `);
   await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;`);
+  await pool.query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT false;`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -83,10 +84,18 @@ async function updateSettings(userId, { assistantName, userDisplayName, voiceId 
 
 async function listConversations(userId) {
   const { rows } = await pool.query(
-    'SELECT id, title, created_at FROM conversations WHERE user_id = $1 ORDER BY created_at DESC',
+    'SELECT id, title, created_at, pinned FROM conversations WHERE user_id = $1 ORDER BY pinned DESC, created_at DESC',
     [userId]
   );
   return rows;
+}
+
+async function togglePin(userId, conversationId) {
+  const { rows } = await pool.query(
+    'UPDATE conversations SET pinned = NOT pinned WHERE id = $1 AND user_id = $2 RETURNING pinned',
+    [conversationId, userId]
+  );
+  return rows[0]?.pinned ?? null;
 }
 
 async function createConversation(userId, title = 'Nueva conversación') {
@@ -115,6 +124,11 @@ async function maybeSetTitle(conversationId, firstUserText) {
     const title = firstUserText.slice(0, 48) + (firstUserText.length > 48 ? '…' : '');
     await pool.query('UPDATE conversations SET title = $1 WHERE id = $2', [title, conversationId]);
   }
+}
+
+async function renameConversation(userId, conversationId, title) {
+  const clean = (title || '').trim().slice(0, 60) || 'Nueva conversación';
+  await pool.query('UPDATE conversations SET title = $1 WHERE id = $2 AND user_id = $3', [clean, conversationId, userId]);
 }
 
 async function deleteConversation(userId, conversationId) {
@@ -146,9 +160,11 @@ module.exports = {
   getSettings,
   updateSettings,
   listConversations,
+  togglePin,
   createConversation,
   ensureConversation,
   maybeSetTitle,
+  renameConversation,
   deleteConversation,
   loadHistory,
   saveMessage,
