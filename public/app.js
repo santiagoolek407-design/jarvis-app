@@ -5,6 +5,7 @@ const statusEl = document.getElementById('status');
 const talkBtn = document.getElementById('talkBtn');
 const talkBtnLabel = document.getElementById('talkBtnLabel');
 const chatToggle = document.getElementById('chatToggle');
+const replayVoiceBtn = document.getElementById('replayVoiceBtn');
 const voiceScreen = document.getElementById('voiceScreen');
 const chatScreen = document.getElementById('chatScreen');
 const backToVoice = document.getElementById('backToVoice');
@@ -30,6 +31,7 @@ let conversationActive = false;
 let currentConversationId = localStorage.getItem('jarvis_current_conversation') || null;
 let assistantName = 'Jarvis';
 let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
+let lastReply = '';
 
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -115,8 +117,62 @@ async function refreshConversations() {
   conversations.forEach((c) => {
     const item = document.createElement('div');
     item.className = 'conv-item' + (String(c.id) === String(currentConversationId) ? ' active' : '');
-    item.textContent = c.title || 'Nueva conversación';
-    item.addEventListener('click', () => selectConversation(c.id));
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'conv-title';
+    titleSpan.textContent = c.title || 'Nueva conversación';
+    titleSpan.addEventListener('click', () => selectConversation(c.id));
+
+    const actions = document.createElement('div');
+    actions.className = 'conv-actions';
+
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'conv-icon-btn conv-pin' + (c.pinned ? ' pinned' : '');
+    pinBtn.title = c.pinned ? 'Desfijar' : 'Fijar';
+    pinBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M16 3l5 5-4 1-4 4 1 5-4-4-5 5v-3l5-5-4-4 5-1 1-4z"/></svg>';
+    pinBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await fetch(`/api/conversations/${c.id}/pin`, { method: 'POST' });
+      refreshConversations();
+    });
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'conv-icon-btn';
+    renameBtn.title = 'Cambiar nombre';
+    renameBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    renameBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const nuevo = prompt('Nuevo nombre para la conversación:', c.title || '');
+      if (nuevo === null) return;
+      await fetch(`/api/conversations/${c.id}/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: nuevo }),
+      });
+      refreshConversations();
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'conv-icon-btn conv-delete';
+    deleteBtn.title = 'Eliminar';
+    deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 7h12l-1 14H7L6 7zm3-4h6l1 2H8l1-2zM4 5h16v2H4z"/></svg>';
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('¿Eliminar esta conversación? No se puede deshacer.')) return;
+      await fetch(`/api/conversations/${c.id}`, { method: 'DELETE' });
+      if (String(currentConversationId) === String(c.id)) {
+        currentConversationId = null;
+        localStorage.removeItem('jarvis_current_conversation');
+        thread.innerHTML = '';
+      }
+      refreshConversations();
+    });
+
+    actions.appendChild(pinBtn);
+    actions.appendChild(renameBtn);
+    actions.appendChild(deleteBtn);
+    item.appendChild(titleSpan);
+    item.appendChild(actions);
     convList.appendChild(item);
   });
 
@@ -238,13 +294,24 @@ function setState(next) {
   statusEl.textContent = STATUS_LABEL[next];
   talkBtn.classList.toggle('listening', next === 'listening');
   talkBtnLabel.textContent = next === 'listening' ? 'Escuchando…' : (conversationActive ? 'Detener conversación' : 'Toca para hablar');
+  replayVoiceBtn.hidden = !(next === 'idle' && lastReply);
 }
+
+replayVoiceBtn.addEventListener('click', () => { if (lastReply) speak(lastReply); });
 
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'user' ? 'user' : 'model');
-  div.innerHTML = `<div class="msg-label">${role === 'user' ? 'TÚ' : assistantName.toUpperCase()}</div><div class="msg-text"></div>`;
+  const replayBtn = role === 'model'
+    ? `<button class="replay-btn" title="Repetir en voz alta">
+        <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M12 5V1L7 6l5 5V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
+       </button>`
+    : '';
+  div.innerHTML = `<div class="msg-label">${role === 'user' ? 'TÚ' : assistantName.toUpperCase()}${replayBtn}</div><div class="msg-text"></div>`;
   div.querySelector('.msg-text').textContent = text;
+  if (role === 'model') {
+    div.querySelector('.replay-btn').addEventListener('click', () => speak(text));
+  }
   thread.appendChild(div);
   thread.scrollTop = thread.scrollHeight;
 }
@@ -270,6 +337,7 @@ async function sendMessage(text) {
     if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
     addMessage('model', data.reply);
+    lastReply = data.reply;
     if (data.uiAction === 'open_text_chat') openChatScreen();
     if (data.uiAction === 'close_text_chat') closeChatScreen();
     speak(data.reply);
