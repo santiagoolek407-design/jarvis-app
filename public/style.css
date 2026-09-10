@@ -4,7 +4,7 @@
   --panel-solid: #07090F;
   --sidebar-bg: #0A0D14;
   --line: rgba(90, 130, 190, 0.14);
-  --blue: #3D8BFF;
+  --blue: #0ff;
   --blue-bright: #7CC0FF;
   --blue-dim: #16305A;
   --text: #E7EEFA;
@@ -143,6 +143,19 @@ html, body {
 }
 .chat-toggle:hover { color: var(--blue-bright); }
 
+.replay-voice-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 4px;
+}
+.replay-voice-btn:hover { color: var(--blue-bright); }
+
 .hint {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -193,17 +206,49 @@ html, body {
 }
 
 .conv-item {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 8px 9px 12px;
   border-radius: 7px;
   font-size: 13px;
   color: var(--text-dim);
   cursor: pointer;
+}
+.conv-item:hover { background: rgba(90, 130, 190, 0.07); color: var(--text); }
+.conv-item.active { background: var(--blue-dim); color: var(--blue-bright); }
+
+.conv-title {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.conv-item:hover { background: rgba(90, 130, 190, 0.07); color: var(--text); }
-.conv-item.active { background: var(--blue-dim); color: var(--blue-bright); }
+
+.conv-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.conv-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.conv-icon-btn:hover { opacity: 1; color: var(--text); background: rgba(90, 130, 190, 0.12); }
+.conv-icon-btn.conv-pin.pinned { color: var(--blue-bright); opacity: 1; }
+.conv-icon-btn.conv-delete:hover { color: #ff7676; }
 
 .back-to-voice-btn {
   display: flex; align-items: center; gap: 8px;
@@ -312,7 +357,19 @@ html, body {
 .msg.model { align-self: flex-start; border-left: 2px solid var(--blue-dim); padding-left: 12px; }
 .msg.user .msg-text { border-right: 2px solid var(--blue); padding-right: 12px; }
 
-.msg-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 4px; }
+.msg-label { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 4px; }
+.msg.user .msg-label { justify-content: flex-end; }
+
+.replay-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+.replay-btn:hover { color: var(--blue-bright); }
 .msg-text { font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
 
 .composer {
