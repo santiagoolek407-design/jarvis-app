@@ -10,8 +10,8 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_flash_v2_5'; // el más rápido, ideal para conversación
-const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // voz "Rachel" (premade), usada si el usuario no eligió otra
+const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_flash_v2_5';
+const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
 
 if (!GEMINI_API_KEY) {
   console.warn('⚠️  No se encontró GEMINI_API_KEY. El chat fallará hasta que la configures.');
@@ -207,6 +207,24 @@ app.post('/api/conversations', async (req, res) => {
 app.delete('/api/conversations/:id', async (req, res) => {
   try {
     await db.deleteConversation(req.userId, req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/conversations/:id/pin', async (req, res) => {
+  try {
+    const pinned = await db.togglePin(req.userId, req.params.id);
+    res.json({ pinned });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/conversations/:id/rename', async (req, res) => {
+  try {
+    await db.renameConversation(req.userId, req.params.id, req.body?.title);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
