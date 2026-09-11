@@ -469,7 +469,7 @@ function monitorClap() {
   const volume = Math.sqrt(sum / clapDataArray.length);
 
   const now = Date.now();
-  if (volume > 0.40 && now - lastClapTime > 1200) {
+  if (volume > 0.70 && now - lastClapTime > 1200) {
     lastClapTime = now;
     if (!conversationActive && state === 'idle' && !chatScreen.classList.contains('open')) {
       talkBtn.click();
