@@ -54,8 +54,9 @@
   <div class="chat-screen" id="chatScreen">
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar" id="sidebar">
-      <button class="new-chat-btn" id="newChatBtn" title="Nueva conversación">
+      <button class="new-chat-btn" id="newChatBtn">
         <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+        <span>Nueva conversación</span>
       </button>
       <div class="conv-list" id="convList"></div>
       <div class="sidebar-bottom">
@@ -78,6 +79,12 @@
         </button>
       </div>
       <div class="thread" id="thread"></div>
+      <div class="stop-speaking-bar" id="stopSpeakingBar" hidden>
+        <button class="stop-speaking-btn" id="stopSpeakingBtn">
+          <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M6 6h12v12H6z"/></svg>
+          Detener voz
+        </button>
+      </div>
       <form class="composer" id="composer">
         <input type="text" id="input" placeholder="Escribe un mensaje…" autocomplete="off" />
         <button type="submit" class="send-btn">Enviar</button>
