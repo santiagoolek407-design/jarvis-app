@@ -37,14 +37,14 @@
           <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
           <span id="talkBtnLabel">Toca para hablar</span>
         </button>
-        <button class="chat-toggle" id="chatToggle" title="Abrir chat de texto">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H8l-4 4V6a1 1 0 011-1z"/></svg>
-          <span>Chat de texto</span>
-        </button>
-        <button class="replay-voice-btn" id="replayVoiceBtn" hidden title="Repetir la última respuesta">
-          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 5V1L7 6l5 5V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
-          Repetir respuesta
-        </button>
+        <div class="icon-row">
+          <button class="chat-toggle" id="chatToggle" title="Abrir chat de texto">
+            <svg viewBox="0 0 24 24" width="17" height="17"><path fill="currentColor" d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H8l-4 4V6a1 1 0 011-1z"/></svg>
+          </button>
+          <button class="replay-voice-btn" id="replayVoiceBtn" hidden title="Repetir la última respuesta">
+            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 5V1L7 6l5 5V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
+          </button>
+        </div>
       </div>
 
       <p class="hint">También puedes decir <em>"abre el chat de texto"</em></p>
@@ -53,23 +53,19 @@
 
   <div class="chat-screen" id="chatScreen">
     <aside class="sidebar">
-      <button class="new-chat-btn" id="newChatBtn">
+      <button class="new-chat-btn" id="newChatBtn" title="Nueva conversación">
         <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
-        Nueva conversación
       </button>
       <div class="conv-list" id="convList"></div>
       <div class="sidebar-bottom">
-        <button class="sidebar-btn" id="settingsBtn">
-          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a7.95 7.95 0 00-.14-1.5l2.11-1.65-2-3.46-2.49 1a8.03 8.03 0 00-2.6-1.5l-.38-2.64h-4l-.38 2.64a8.03 8.03 0 00-2.6 1.5l-2.49-1-2 3.46 2.11 1.65a7.95 7.95 0 000 3l-2.11 1.65 2 3.46 2.49-1a8.03 8.03 0 002.6 1.5l.38 2.64h4l.38-2.64a8.03 8.03 0 002.6-1.5l2.49 1 2-3.46-2.11-1.65c.09-.5.14-1 .14-1.5z"/></svg>
-          Configuración
+        <button class="sidebar-btn" id="settingsBtn" title="Configuración">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3a7.95 7.95 0 00-.14-1.5l2.11-1.65-2-3.46-2.49 1a8.03 8.03 0 00-2.6-1.5l-.38-2.64h-4l-.38 2.64a8.03 8.03 0 00-2.6 1.5l-2.49-1-2 3.46 2.11 1.65a7.95 7.95 0 000 3l-2.11 1.65 2 3.46 2.49-1a8.03 8.03 0 002.6 1.5l.38 2.64h4l.38-2.64a8.03 8.03 0 002.6-1.5l2.49 1 2-3.46-2.11-1.65c.09-.5.14-1 .14-1.5z"/></svg>
         </button>
-        <button class="sidebar-btn" id="logoutBtn">
-          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M16 13v-2H7V8l-5 4 5 4v-3zM20 3H10a1 1 0 00-1 1v4h2V5h8v14h-8v-3H9v4a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1z"/></svg>
-          Cerrar sesión
+        <button class="sidebar-btn" id="logoutBtn" title="Cerrar sesión">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16 13v-2H7V8l-5 4 5 4v-3zM20 3H10a1 1 0 00-1 1v4h2V5h8v14h-8v-3H9v4a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1z"/></svg>
         </button>
-        <button class="back-to-voice-btn" id="backToVoice">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
-          Volver a la voz
+        <button class="back-to-voice-btn" id="backToVoice" title="Volver a la voz">
+          <svg viewBox="0 0 24 24" width="17" height="17"><path fill="currentColor" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-2.08A7 7 0 0019 12h-2z"/></svg>
         </button>
       </div>
     </aside>
