@@ -23,6 +23,8 @@ const voiceSelect = document.getElementById('voiceSelect');
 const settingsCancel = document.getElementById('settingsCancel');
 const settingsSave = document.getElementById('settingsSave');
 const thread = document.getElementById('thread');
+const stopSpeakingBar = document.getElementById('stopSpeakingBar');
+const stopSpeakingBtn = document.getElementById('stopSpeakingBtn');
 const composer = document.getElementById('composer');
 const input = document.getElementById('input');
 const modelNameEl = document.getElementById('modelName');
@@ -317,7 +319,14 @@ function setState(next) {
   talkBtn.classList.toggle('listening', next === 'listening');
   talkBtnLabel.textContent = next === 'listening' ? 'Escuchando…' : (conversationActive ? 'Detener conversación' : 'Toca para hablar');
   replayVoiceBtn.hidden = !(next === 'idle' && lastReply);
+  stopSpeakingBar.hidden = next !== 'speaking';
 }
+
+stopSpeakingBtn.addEventListener('click', () => {
+  window.speechSynthesis.cancel();
+  setState('idle');
+  if (conversationActive) startListening();
+});
 
 replayVoiceBtn.addEventListener('click', () => { if (lastReply) speak(lastReply); });
 
@@ -349,10 +358,31 @@ function addMessage(role, text) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+function showThinkingIndicator() {
+  const div = document.createElement('div');
+  div.className = 'msg model';
+  div.id = 'thinkingIndicator';
+  div.innerHTML = `<div class="msg-label">${assistantName.toUpperCase()}</div><div class="msg-text">
+    <svg class="atom-icon" viewBox="0 0 40 40" width="24" height="24">
+      <circle cx="20" cy="20" r="3" fill="currentColor"/>
+      <ellipse cx="20" cy="20" rx="16" ry="7" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <ellipse cx="20" cy="20" rx="16" ry="7" fill="none" stroke="currentColor" stroke-width="1.4" transform="rotate(60 20 20)"/>
+      <ellipse cx="20" cy="20" rx="16" ry="7" fill="none" stroke="currentColor" stroke-width="1.4" transform="rotate(120 20 20)"/>
+    </svg>
+  </div>`;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+function removeThinkingIndicator() {
+  const el = document.getElementById('thinkingIndicator');
+  if (el) el.remove();
+}
+
 // ============ Conversación con el backend ============
 async function sendMessage(text) {
   addMessage('user', text);
   setState('thinking');
+  showThinkingIndicator();
 
   try {
     if (!currentConversationId) {
@@ -370,12 +400,14 @@ async function sendMessage(text) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
+    removeThinkingIndicator();
     addMessage('model', data.reply);
     lastReply = data.reply;
     if (data.uiAction === 'open_text_chat') openChatScreen();
     if (data.uiAction === 'close_text_chat') closeChatScreen();
     speak(data.reply);
   } catch (err) {
+    removeThinkingIndicator();
     addMessage('model', `⚠️ ${err.message}`);
     setState('idle');
   }
