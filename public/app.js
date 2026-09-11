@@ -33,6 +33,7 @@ let assistantName = 'Jarvis';
 let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
 let lastReply = '';
 
+// ============ Reloj y salud ============
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }, 1000);
@@ -42,6 +43,7 @@ fetch('/api/health').then((r) => r.json()).then((d) => {
   memStatusEl.textContent = d.memory ? 'ACTIVA' : 'INACTIVA';
 }).catch(() => { modelNameEl.textContent = 'sin conexión'; });
 
+// ============ Configuración (nombre del asistente, cómo te llama, voz) ============
 function applyAssistantName(name) {
   assistantName = name || 'Jarvis';
   document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = assistantName.toUpperCase(); });
@@ -108,6 +110,7 @@ logoutBtn.addEventListener('click', async () => {
   window.location.href = '/login.html';
 });
 
+// ============ Conversaciones ============
 async function refreshConversations() {
   const res = await fetch('/api/conversations');
   const data = await res.json();
@@ -176,6 +179,7 @@ async function refreshConversations() {
     convList.appendChild(item);
   });
 
+  // Si no hay conversación activa todavía, usa la más reciente o crea una.
   if (!currentConversationId && conversations.length > 0) {
     selectConversation(conversations[0].id);
   } else if (conversations.length === 0) {
@@ -208,6 +212,7 @@ async function selectConversation(id) {
 
 newChatBtn.addEventListener('click', createNewConversation);
 
+// ============ Cambiar de pantalla (voz <-> chat) ============
 function openChatScreen() {
   chatScreen.classList.add('open');
   refreshConversations();
@@ -219,6 +224,7 @@ function closeChatScreen() {
 chatToggle.addEventListener('click', openChatScreen);
 backToVoice.addEventListener('click', closeChatScreen);
 
+// ============ Esfera de partículas (canvas) ============
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 function resizeCanvas() {
   const size = canvas.clientWidth || 420;
@@ -246,10 +252,10 @@ let angle = 0;
 let t = 0;
 
 const STATE_STYLE = {
-  idle: { color: [61, 139, 255], speed: 0.0025, ampBase: 0.02, ampWave: 0.01, glow: 0.35 },
-  listening: { color: [111, 180, 255], speed: 0.008, ampBase: 0.05, ampWave: 0.05, glow: 0.6 },
-  thinking: { color: [140, 190, 255], speed: 0.02, ampBase: 0.03, ampWave: 0.02, glow: 0.55 },
-  speaking: { color: [90, 200, 255], speed: 0.01, ampBase: 0.07, ampWave: 0.06, glow: 0.75 },
+  idle: { color: [0, 220, 220], speed: 0.0025, ampBase: 0.02, ampWave: 0.01, glow: 0.35 },
+  listening: { color: [0, 255, 255], speed: 0.008, ampBase: 0.05, ampWave: 0.05, glow: 0.6 },
+  thinking: { color: [90, 255, 255], speed: 0.02, ampBase: 0.03, ampWave: 0.02, glow: 0.55 },
+  speaking: { color: [0, 255, 255], speed: 0.01, ampBase: 0.07, ampWave: 0.06, glow: 0.75 },
 };
 
 function draw() {
@@ -287,6 +293,7 @@ function draw() {
 }
 requestAnimationFrame(draw);
 
+// ============ Estado / UI ============
 const STATUS_LABEL = { idle: 'EN ESPERA', listening: 'ESCUCHANDO', thinking: 'PENSANDO', speaking: 'HABLANDO' };
 
 function setState(next) {
@@ -316,6 +323,7 @@ function addMessage(role, text) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+// ============ Conversación con el backend ============
 async function sendMessage(text) {
   addMessage('user', text);
   setState('thinking');
@@ -347,6 +355,7 @@ async function sendMessage(text) {
   }
 }
 
+// ============ Voz: síntesis (TTS) ============
 function speak(text) {
   if (!('speechSynthesis' in window)) { setState('idle'); return; }
   const utter = new SpeechSynthesisUtterance(text);
@@ -369,6 +378,7 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
+// ============ Voz: reconocimiento (STT) ============
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 
@@ -413,6 +423,7 @@ talkBtn.addEventListener('click', () => {
   }
 });
 
+// ============ Chat de texto ============
 composer.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
