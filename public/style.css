@@ -1,14 +1,14 @@
 :root {
-  --bg: #020305;
-  --panel: rgba(10, 15, 26, 0.6);
-  --panel-solid: #07090F;
-  --sidebar-bg: #0A0D14;
-  --line: rgba(90, 130, 190, 0.14);
-  --blue: #0ff;
-  --blue-bright: #7CC0FF;
-  --blue-dim: #16305A;
-  --text: #E7EEFA;
-  --text-dim: #5C6E90;
+  --bg: #000000;
+  --panel: rgba(0, 0, 0, 0.6);
+  --panel-solid: #030303;
+  --sidebar-bg: #000000;
+  --line: rgba(0, 255, 255, 0.14);
+  --blue: #00FFFF;
+  --blue-bright: #7DFFFF;
+  --blue-dim: #063D3D;
+  --text: #E7FFFF;
+  --text-dim: #4C7373;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --sans: 'Inter', system-ui, sans-serif;
 }
@@ -29,8 +29,8 @@ html, body {
   inset: 0;
   z-index: 0;
   background-image:
-    linear-gradient(rgba(90, 130, 190, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(90, 130, 190, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(0, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 44px 44px;
   -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 0%, transparent 75%);
   mask-image: radial-gradient(ellipse at 50% 40%, black 0%, transparent 75%);
@@ -52,7 +52,7 @@ html, body {
 .brand-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--blue-bright);
-  box-shadow: 0 0 8px 2px rgba(124, 192, 255, 0.6);
+  box-shadow: 0 0 8px 2px rgba(0, 255, 255, 0.6);
 }
 .brand-name {
   font-family: var(--mono);
@@ -95,14 +95,14 @@ html, body {
 .orb-ring {
   position: absolute; inset: -14px;
   border-radius: 50%;
-  border: 1px solid rgba(90, 130, 190, 0.14);
+  border: 1px solid rgba(0, 255, 255, 0.14);
   pointer-events: none;
 }
 .orb-ring::before {
   content: '';
   position: absolute; inset: -24px;
   border-radius: 50%;
-  border: 1px dashed rgba(90, 130, 190, 0.1);
+  border: 1px dashed rgba(0, 255, 255, 0.1);
 }
 
 .status { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--blue-bright); }
@@ -123,45 +123,34 @@ html, body {
   backdrop-filter: blur(10px);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.talk-btn:hover { border-color: var(--blue); box-shadow: 0 0 16px rgba(61, 139, 255, 0.15); }
+.talk-btn:hover { border-color: var(--blue); box-shadow: 0 0 16px rgba(0, 255, 255, 0.15); }
 .talk-btn.listening {
   background: var(--blue);
   color: #04060B;
   border-color: var(--blue);
-  box-shadow: 0 0 26px rgba(61, 139, 255, 0.55);
+  box-shadow: 0 0 26px rgba(0, 255, 255, 0.55);
 }
 
-.chat-toggle {
-  display: flex; align-items: center; gap: 7px;
-  background: none; border: none;
-  color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  padding: 4px;
-}
-.chat-toggle:hover { color: var(--blue-bright); }
+.icon-row { display: flex; gap: 10px; }
 
-.replay-voice-btn {
-  display: flex; align-items: center; gap: 6px;
+.chat-toggle, .replay-voice-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
-  border: none;
+  border: 1px solid var(--line);
   color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
+  border-radius: 50%;
   cursor: pointer;
-  padding: 4px;
 }
-.replay-voice-btn:hover { color: var(--blue-bright); }
+.chat-toggle:hover, .replay-voice-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); background: rgba(0, 255, 255, 0.08); }
 
 .hint {
   font-family: var(--mono);
   font-size: 10.5px;
-  color: rgba(92, 110, 144, 0.6);
+  color: rgba(76, 115, 115, 0.6);
 }
-.hint em { color: rgba(124, 192, 255, 0.55); font-style: normal; }
+.hint em { color: rgba(0, 255, 255, 0.55); font-style: normal; }
 
 .chat-screen {
   position: fixed;
@@ -184,18 +173,17 @@ html, body {
 }
 
 .new-chat-btn {
-  display: flex; align-items: center; gap: 8px;
-  background: rgba(90, 130, 190, 0.07);
+  display: flex; align-items: center; justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: rgba(0, 255, 255, 0.07);
   border: 1px solid var(--line);
   color: var(--text);
-  padding: 11px 14px;
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
-  font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 500;
+  align-self: center;
 }
-.new-chat-btn:hover { border-color: var(--blue-dim); background: rgba(61, 139, 255, 0.08); }
+.new-chat-btn:hover { border-color: var(--blue-dim); background: rgba(0, 255, 255, 0.14); color: var(--blue-bright); }
 
 .conv-list {
   flex: 1;
@@ -216,7 +204,7 @@ html, body {
   color: var(--text-dim);
   cursor: pointer;
 }
-.conv-item:hover { background: rgba(90, 130, 190, 0.07); color: var(--text); }
+.conv-item:hover { background: rgba(0, 255, 255, 0.07); color: var(--text); }
 .conv-item.active { background: var(--blue-dim); color: var(--blue-bright); }
 
 .conv-title {
@@ -246,38 +234,35 @@ html, body {
   cursor: pointer;
   opacity: 0.55;
 }
-.conv-icon-btn:hover { opacity: 1; color: var(--text); background: rgba(90, 130, 190, 0.12); }
+.conv-icon-btn:hover { opacity: 1; color: var(--text); background: rgba(0, 255, 255, 0.12); }
 .conv-icon-btn.conv-pin.pinned { color: var(--blue-bright); opacity: 1; }
 .conv-icon-btn.conv-delete:hover { color: #ff7676; }
 
 .back-to-voice-btn {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center;
+  width: 38px;
+  height: 38px;
   background: none;
   border: 1px solid var(--line);
   color: var(--text-dim);
-  padding: 11px 14px;
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
-  font-family: var(--sans);
-  font-size: 13px;
 }
 .back-to-voice-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
 
-.sidebar-bottom { display: flex; flex-direction: column; gap: 6px; }
+.sidebar-bottom { display: flex; flex-direction: row; justify-content: center; gap: 10px; padding-top: 6px; border-top: 1px solid var(--line); }
 
 .sidebar-btn {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center;
+  width: 38px;
+  height: 38px;
   background: none;
-  border: none;
+  border: 1px solid var(--line);
   color: var(--text-dim);
-  padding: 9px 10px;
-  border-radius: 7px;
+  border-radius: 50%;
   cursor: pointer;
-  font-family: var(--sans);
-  font-size: 13px;
-  text-align: left;
 }
-.sidebar-btn:hover { background: rgba(90, 130, 190, 0.07); color: var(--text); }
+.sidebar-btn:hover { background: rgba(0, 255, 255, 0.1); color: var(--blue-bright); border-color: var(--blue-dim); }
 
 .modal-overlay {
   position: fixed;
@@ -311,7 +296,7 @@ html, body {
 .modal-label:first-of-type { margin-top: 0; }
 .modal-card input, .modal-card select {
   width: 100%;
-  background: rgba(90, 130, 190, 0.06);
+  background: rgba(0, 255, 255, 0.06);
   border: 1px solid var(--line);
   color: var(--text);
   padding: 10px 12px;
@@ -331,7 +316,7 @@ html, body {
   font-size: 12.5px;
   border: none;
 }
-.modal-cancel { background: rgba(90, 130, 190, 0.08); color: var(--text-dim); }
+.modal-cancel { background: rgba(0, 255, 255, 0.08); color: var(--text-dim); }
 .modal-cancel:hover { color: var(--text); }
 .modal-save { background: var(--blue); color: #04060B; }
 .modal-save:hover { background: var(--blue-bright); }
@@ -380,7 +365,7 @@ html, body {
 }
 #input {
   flex: 1;
-  background: rgba(90, 130, 190, 0.06);
+  background: rgba(0, 255, 255, 0.06);
   border: 1px solid var(--line);
   color: var(--text);
   padding: 13px 15px;
