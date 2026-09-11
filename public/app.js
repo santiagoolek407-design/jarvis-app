@@ -8,6 +8,9 @@ const chatToggle = document.getElementById('chatToggle');
 const replayVoiceBtn = document.getElementById('replayVoiceBtn');
 const voiceScreen = document.getElementById('voiceScreen');
 const chatScreen = document.getElementById('chatScreen');
+const sidebar = document.getElementById('sidebar');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+const menuBtn = document.getElementById('menuBtn');
 const backToVoice = document.getElementById('backToVoice');
 const newChatBtn = document.getElementById('newChatBtn');
 const convList = document.getElementById('convList');
@@ -179,7 +182,6 @@ async function refreshConversations() {
     convList.appendChild(item);
   });
 
-  // Si no hay conversación activa todavía, usa la más reciente o crea una.
   if (!currentConversationId && conversations.length > 0) {
     selectConversation(conversations[0].id);
   } else if (conversations.length === 0) {
@@ -198,6 +200,7 @@ async function selectConversation(id) {
   currentConversationId = id;
   localStorage.setItem('jarvis_current_conversation', id);
   thread.innerHTML = '';
+  closeSidebar();
 
   const res = await fetch(`/api/history?conversationId=${id}`);
   const data = await res.json();
@@ -223,6 +226,18 @@ function closeChatScreen() {
 
 chatToggle.addEventListener('click', openChatScreen);
 backToVoice.addEventListener('click', closeChatScreen);
+
+// ============ Cajón de conversaciones (móvil) ============
+function openSidebar() {
+  sidebar.classList.add('open');
+  sidebarBackdrop.classList.add('open');
+}
+function closeSidebar() {
+  sidebar.classList.remove('open');
+  sidebarBackdrop.classList.remove('open');
+}
+menuBtn.addEventListener('click', openSidebar);
+sidebarBackdrop.addEventListener('click', closeSidebar);
 
 // ============ Esfera de partículas (canvas) ============
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -306,6 +321,17 @@ function setState(next) {
 
 replayVoiceBtn.addEventListener('click', () => { if (lastReply) speak(lastReply); });
 
+function formatMessage(text) {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'user' ? 'user' : 'model');
@@ -315,7 +341,7 @@ function addMessage(role, text) {
        </button>`
     : '';
   div.innerHTML = `<div class="msg-label">${role === 'user' ? 'TÚ' : assistantName.toUpperCase()}${replayBtn}</div><div class="msg-text"></div>`;
-  div.querySelector('.msg-text').textContent = text;
+  div.querySelector('.msg-text').innerHTML = formatMessage(text);
   if (role === 'model') {
     div.querySelector('.replay-btn').addEventListener('click', () => speak(text));
   }
@@ -408,6 +434,49 @@ function startListening() {
   if (!recognition) return;
   try { recognition.start(); } catch (_e) { /* ya estaba escuchando */ }
 }
+
+// ============ Activar con un aplauso ============
+let clapAnalyser = null;
+let clapDataArray = null;
+let lastClapTime = 0;
+
+async function initClapDetector() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(stream);
+    clapAnalyser = audioCtx.createAnalyser();
+    clapAnalyser.fftSize = 512;
+    source.connect(clapAnalyser);
+    clapDataArray = new Uint8Array(clapAnalyser.fftSize);
+    monitorClap();
+  } catch (_e) {
+    // Si no hay permiso de micrófono todavía, simplemente no se activa por aplauso
+    // (sigue funcionando el botón normal).
+  }
+}
+
+function monitorClap() {
+  requestAnimationFrame(monitorClap);
+  if (!clapAnalyser) return;
+
+  clapAnalyser.getByteTimeDomainData(clapDataArray);
+  let sum = 0;
+  for (let i = 0; i < clapDataArray.length; i++) {
+    const v = (clapDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  const volume = Math.sqrt(sum / clapDataArray.length);
+
+  const now = Date.now();
+  if (volume > 0.35 && now - lastClapTime > 1200) {
+    lastClapTime = now;
+    if (!conversationActive && state === 'idle' && !chatScreen.classList.contains('open')) {
+      talkBtn.click();
+    }
+  }
+}
+initClapDetector();
 
 talkBtn.addEventListener('click', () => {
   if (!recognition) return;
