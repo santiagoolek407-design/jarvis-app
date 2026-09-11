@@ -387,7 +387,46 @@ html, body {
 }
 .send-btn:hover { background: var(--blue-bright); }
 
+.chat-mobile-header { display: none; }
+.menu-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.menu-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 24;
+}
+.sidebar-backdrop.open { display: block; }
+
 @media (max-width: 720px) {
-  .sidebar { width: 82vw; position: absolute; z-index: 2; height: 100%; }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 78vw;
+    max-width: 300px;
+    z-index: 25;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .chat-mobile-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px 0;
+  }
+
   .thread, .composer { padding-left: 5%; padding-right: 5%; }
 }
