@@ -39,6 +39,12 @@ let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
 let lastReply = '';
 
 // ============ Reloj y salud ============
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }, 1000);
@@ -184,6 +190,7 @@ async function refreshConversations() {
     convList.appendChild(item);
   });
 
+  // Si no hay conversación activa todavía, usa la más reciente o crea una.
   if (!currentConversationId && conversations.length > 0) {
     selectConversation(conversations[0].id);
   } else if (conversations.length === 0) {
