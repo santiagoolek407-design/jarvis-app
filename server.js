@@ -67,7 +67,7 @@ app.use(auth.authMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 
 function buildSystemInstruction({ assistantName, userDisplayName }) {
-  const name = assistantName || 'Jarvis';
+  const name = assistantName || 'Aeris';
   const addressLine = userDisplayName
     ? `El usuario quiere que le digas "${userDisplayName}".`
     : '';
@@ -297,5 +297,5 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, provide
 db.initDb()
   .catch((err) => console.error('Error inicializando la base de datos:', err))
   .finally(() => {
-    app.listen(PORT, () => console.log(`🧠 Jarvis corriendo en http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`🧠 Aeris corriendo en http://localhost:${PORT}`));
   });
