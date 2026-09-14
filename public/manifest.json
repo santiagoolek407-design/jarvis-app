@@ -1,6 +1,6 @@
 {
-  "name": "Jarvis",
-  "short_name": "Jarvis",
+  "name": "Aeris",
+  "short_name": "Aeris",
   "description": "Tu asistente personal de voz y texto",
   "start_url": "/",
   "scope": "/",
