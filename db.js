@@ -20,12 +20,12 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      assistant_name TEXT NOT NULL DEFAULT 'Jarvis',
+      assistant_name TEXT NOT NULL DEFAULT 'Aeris',
       user_display_name TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_name TEXT NOT NULL DEFAULT 'Jarvis';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_name TEXT NOT NULL DEFAULT 'Aeris';`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_display_name TEXT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS voice_id TEXT;`);
 
@@ -72,13 +72,13 @@ async function getSettings(userId) {
     'SELECT assistant_name, user_display_name, voice_id FROM users WHERE id = $1',
     [userId]
   );
-  return rows[0] || { assistant_name: 'Jarvis', user_display_name: null, voice_id: null };
+  return rows[0] || { assistant_name: 'Aeris', user_display_name: null, voice_id: null };
 }
 
 async function updateSettings(userId, { assistantName, userDisplayName, voiceId }) {
   await pool.query(
     'UPDATE users SET assistant_name = $1, user_display_name = $2, voice_id = $3 WHERE id = $4',
-    [assistantName || 'Jarvis', userDisplayName || null, voiceId || null, userId]
+    [assistantName || 'Aeris', userDisplayName || null, voiceId || null, userId]
   );
 }
 
