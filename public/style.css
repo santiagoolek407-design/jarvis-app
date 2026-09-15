@@ -105,7 +105,19 @@ html, body {
 }
 
 .status { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--blue-bright); }
-
+.install-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid var(--blue-dim);
+  color: var(--blue-bright);
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.install-btn:hover { background: rgba(0, 255, 255, 0.18); }
 .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
 .talk-btn {
