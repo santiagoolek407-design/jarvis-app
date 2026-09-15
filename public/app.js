@@ -4,6 +4,7 @@ const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 const talkBtn = document.getElementById('talkBtn');
 const talkBtnLabel = document.getElementById('talkBtnLabel');
+const installBtn = document.getElementById('installBtn');
 const chatToggle = document.getElementById('chatToggle');
 const replayVoiceBtn = document.getElementById('replayVoiceBtn');
 const voiceScreen = document.getElementById('voiceScreen');
@@ -33,9 +34,9 @@ const clockEl = document.getElementById('clock');
 
 let state = 'idle';
 let conversationActive = false;
-let currentConversationId = localStorage.getItem('jarvis_current_conversation') || null;
-let assistantName = 'Jarvis';
-let selectedVoiceURI = localStorage.getItem('jarvis_voice_uri') || null;
+let currentConversationId = localStorage.getItem('aeris_current_conversation') || null;
+let assistantName = 'Aeris';
+let selectedVoiceURI = localStorage.getItem('aeris_voice_uri') || null;
 let lastReply = '';
 
 // ============ Reloj y salud ============
@@ -44,6 +45,28 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+
+// ============ Botón de instalar la app ============
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.hidden = false;
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.hidden = true;
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.hidden = true;
+  deferredInstallPrompt = null;
+});
 
 setInterval(() => {
   clockEl.textContent = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -56,7 +79,7 @@ fetch('/api/health').then((r) => r.json()).then((d) => {
 
 // ============ Configuración (nombre del asistente, cómo te llama, voz) ============
 function applyAssistantName(name) {
-  assistantName = name || 'Jarvis';
+  assistantName = name || 'Aeris';
   document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = assistantName.toUpperCase(); });
   document.title = assistantName;
 }
@@ -101,11 +124,11 @@ settingsCancel.addEventListener('click', closeSettings);
 settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
 
 settingsSave.addEventListener('click', async () => {
-  const newAssistantName = assistantNameInput.value.trim() || 'Jarvis';
+  const newAssistantName = assistantNameInput.value.trim() || 'Aeris';
   const newUserName = userNameInput.value.trim();
   selectedVoiceURI = voiceSelect.value || null;
-  if (selectedVoiceURI) localStorage.setItem('jarvis_voice_uri', selectedVoiceURI);
-  else localStorage.removeItem('jarvis_voice_uri');
+  if (selectedVoiceURI) localStorage.setItem('aeris_voice_uri', selectedVoiceURI);
+  else localStorage.removeItem('aeris_voice_uri');
 
   await fetch('/api/settings', {
     method: 'POST',
@@ -176,7 +199,7 @@ async function refreshConversations() {
       await fetch(`/api/conversations/${c.id}`, { method: 'DELETE' });
       if (String(currentConversationId) === String(c.id)) {
         currentConversationId = null;
-        localStorage.removeItem('jarvis_current_conversation');
+        localStorage.removeItem('aeris_current_conversation');
         thread.innerHTML = '';
       }
       refreshConversations();
@@ -207,7 +230,7 @@ async function createNewConversation() {
 
 async function selectConversation(id) {
   currentConversationId = id;
-  localStorage.setItem('jarvis_current_conversation', id);
+  localStorage.setItem('aeris_current_conversation', id);
   thread.innerHTML = '';
   closeSidebar();
 
@@ -348,6 +371,15 @@ function formatMessage(text) {
     .replace(/\n/g, '<br>');
 }
 
+// Quita los símbolos de markdown (**negrita**, *cursiva*, etc.) antes de mandarlo a voz,
+// para que Jarvis diga la palabra normal en vez de "asterisco, asterisco, palabra".
+function cleanForSpeech(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/[_~`#]/g, '');
+}
+
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'user' ? 'user' : 'model');
@@ -396,7 +428,7 @@ async function sendMessage(text) {
       const res = await fetch('/api/conversations', { method: 'POST' });
       const conv = await res.json();
       currentConversationId = conv.id;
-      localStorage.setItem('jarvis_current_conversation', conv.id);
+      localStorage.setItem('aeris_current_conversation', conv.id);
     }
 
     const res = await fetch('/api/chat', {
@@ -421,8 +453,9 @@ async function sendMessage(text) {
 }
 
 // ============ Voz: síntesis (TTS) ============
-function speak(text) {
+function speak(rawText) {
   if (!('speechSynthesis' in window)) { setState('idle'); return; }
+  const text = cleanForSpeech(rawText);
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1.02;
 
